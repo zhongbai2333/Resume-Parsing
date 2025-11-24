@@ -70,7 +70,6 @@ jobs:
         with:
           name: linux-build
           path: |
-            dist/resume-parsing-linux-*
             dist/resume-parsing-linux-*.zip
 
   build-linux-arm64:
@@ -130,7 +129,6 @@ jobs:
         with:
           name: linux-arm64-build
           path: |
-            dist/resume-parsing-linux-arm64-*
             dist/resume-parsing-linux-arm64-*.zip
 
   build-windows:
@@ -186,7 +184,6 @@ jobs:
         with:
           name: windows-build
           path: |
-            dist\resume-parsing-win64-*
             dist\resume-parsing-win64-*.zip
 
   build-macos:
@@ -214,10 +211,6 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Install size tools (macOS)
-        run: |
-          brew install upx || true
-
       - name: Build executable (macOS)
         run: |
           if [ "${{ github.ref_type }}" = "tag" ]; then
@@ -229,18 +222,11 @@ jobs:
             --exclude-module tkinter --exclude-module test --exclude-module pytest \
             --name resume-parsing-macos-${VERSION} main.py
 
-      - name: Optimize binary (strip + upx if available) (macOS)
+      - name: Optimize binary (strip only) (macOS)
         run: |
           BIN=$(ls dist/resume-parsing-macos-* | head -n1)
           if [ -n "$BIN" ]; then
             strip -x "$BIN" || true
-            if command -v upx >/dev/null 2>&1; then
-              if command -v timeout >/dev/null 2>&1; then
-                timeout 180 upx --best "$BIN" || echo "UPX failed or timed out, continuing"
-              else
-                upx --best "$BIN" || echo "UPX failed, continuing"
-              fi
-            fi
             zip -j "${BIN}.zip" "$BIN" || true
           else
             echo "No binary found in dist/"
@@ -252,7 +238,6 @@ jobs:
         with:
           name: macos-build
           path: |
-            dist/resume-parsing-macos-*
             dist/resume-parsing-macos-*.zip
 
   publish-release:
