@@ -37,9 +37,9 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Install size tools (upx/strip) (Linux)
+      - name: Install strip/zip (Linux)
         run: |
-          sudo apt-get update && sudo apt-get install -y upx binutils zip || true
+          sudo apt-get update && sudo apt-get install -y binutils zip || true
 
       - name: Build executable (Linux)
         run: |
@@ -48,24 +48,17 @@ jobs:
           else
             VERSION="sha-${{ github.sha }}"
           fi
-          # Exclude common unused modules to reduce size and enable strip/upx
+          # Exclude common unused modules to reduce size and enable strip
           pyinstaller --onefile --clean --strip \
             --exclude-module tkinter --exclude-module test --exclude-module pytest \
-            --upx-dir /usr/bin --name resume-parsing-linux-${VERSION} main.py
+            --name resume-parsing-linux-${VERSION} main.py
 
-      - name: Optimize binary (strip + upx) (Linux)
+      - name: Optimize binary (strip only) (Linux)
         run: |
           set -eux
           BIN=$(ls dist/resume-parsing-linux-* | head -n1)
           if [ -n "$BIN" ]; then
             strip "$BIN" || true
-            if command -v upx >/dev/null 2>&1; then
-              if command -v timeout >/dev/null 2>&1; then
-                timeout 180 upx --best "$BIN" || echo "UPX failed or timed out, continuing"
-              else
-                upx --best "$BIN" || echo "UPX failed, continuing"
-              fi
-            fi
             zip -j "${BIN}.zip" "$BIN" || true
           else
             echo "No binary found in dist/"
@@ -105,9 +98,9 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Install size tools (upx/strip) (Linux ARM64)
+      - name: Install strip/zip (Linux ARM64)
         run: |
-          sudo apt-get update && sudo apt-get install -y upx binutils zip || true
+          sudo apt-get update && sudo apt-get install -y binutils zip || true
 
       - name: Build executable (Linux ARM64)
         run: |
@@ -118,21 +111,14 @@ jobs:
           fi
           pyinstaller --onefile --clean --strip \
             --exclude-module tkinter --exclude-module test --exclude-module pytest \
-            --upx-dir /usr/bin --name resume-parsing-linux-arm64-${VERSION} main.py
+            --name resume-parsing-linux-arm64-${VERSION} main.py
 
-      - name: Optimize binary (strip + upx) (Linux ARM64)
+      - name: Optimize binary (strip only) (Linux ARM64)
         run: |
           set -eux
           BIN=$(ls dist/resume-parsing-linux-arm64-* | head -n1)
           if [ -n "$BIN" ]; then
             strip "$BIN" || true
-            if command -v upx >/dev/null 2>&1; then
-              if command -v timeout >/dev/null 2>&1; then
-                timeout 180 upx --best "$BIN" || echo "UPX failed or timed out, continuing"
-              else
-                upx --best "$BIN" || echo "UPX failed, continuing"
-              fi
-            fi
             zip -j "${BIN}.zip" "$BIN" || true
           else
             echo "No binary found in dist/"
@@ -187,18 +173,10 @@ jobs:
           pyinstaller --onefile --clean --name "resume-parsing-win64-$version" --upx-dir "$upxDir" --exclude-module tkinter --exclude-module test --exclude-module pytest main.py
         shell: powershell
 
-      - name: Optimize binary (UPX) (Windows)
+      - name: Package executable (Windows)
         run: |
           $exe = Get-ChildItem dist\resume-parsing-win64-* -File | Select-Object -First 1
           if ($exe) {
-            $upx = Join-Path $pwd "upx\upx-5.0.0-win64\upx.exe"
-            if (Test-Path $upx) {
-              & $upx --best $exe.FullName
-              if ($LASTEXITCODE -ne 0) {
-                Write-Host "UPX failed with exit code $LASTEXITCODE, skipping compression."
-                $global:LASTEXITCODE = 0
-              }
-            }
             Compress-Archive -Path $exe.FullName -DestinationPath ($exe.FullName + '.zip') -Force
           } else { throw 'No exe found' }
         shell: powershell
