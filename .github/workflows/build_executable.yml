@@ -58,14 +58,15 @@ jobs:
           set -eux
           BIN=$(ls dist/resume-parsing-linux-* | head -n1)
           if [ -n "$BIN" ]; then
-            # strip symbols
             strip "$BIN" || true
-            # upx best compression
             if command -v upx >/dev/null 2>&1; then
-              upx --best --ultra-brute "$BIN" || true
+              if command -v timeout >/dev/null 2>&1; then
+                timeout 180 upx --best "$BIN" || echo "UPX failed or timed out, continuing"
+              else
+                upx --best "$BIN" || echo "UPX failed, continuing"
+              fi
             fi
-            # package into zip for smaller upload
-            zip -j "${BIN}.zip" "$BIN"
+            zip -j "${BIN}.zip" "$BIN" || true
           else
             echo "No binary found in dist/"
             exit 1
@@ -126,9 +127,13 @@ jobs:
           if [ -n "$BIN" ]; then
             strip "$BIN" || true
             if command -v upx >/dev/null 2>&1; then
-              upx --best --ultra-brute "$BIN" || true
+              if command -v timeout >/dev/null 2>&1; then
+                timeout 180 upx --best "$BIN" || echo "UPX failed or timed out, continuing"
+              else
+                upx --best "$BIN" || echo "UPX failed, continuing"
+              fi
             fi
-            zip -j "${BIN}.zip" "$BIN"
+            zip -j "${BIN}.zip" "$BIN" || true
           else
             echo "No binary found in dist/"
             exit 1
@@ -187,7 +192,13 @@ jobs:
           $exe = Get-ChildItem dist\resume-parsing-win64-* -File | Select-Object -First 1
           if ($exe) {
             $upx = Join-Path $pwd "upx\upx-5.0.0-win64\upx.exe"
-            if (Test-Path $upx) { & $upx --best --ultra-brute $exe.FullName }
+            if (Test-Path $upx) {
+              & $upx --best $exe.FullName
+              if ($LASTEXITCODE -ne 0) {
+                Write-Host "UPX failed with exit code $LASTEXITCODE, skipping compression."
+                $global:LASTEXITCODE = 0
+              }
+            }
             Compress-Archive -Path $exe.FullName -DestinationPath ($exe.FullName + '.zip') -Force
           } else { throw 'No exe found' }
         shell: powershell
@@ -244,11 +255,13 @@ jobs:
         run: |
           BIN=$(ls dist/resume-parsing-macos-* | head -n1)
           if [ -n "$BIN" ]; then
-            # strip symbols
             strip -x "$BIN" || true
-            # try upx if available (may not support Mach-O on all systems)
             if command -v upx >/dev/null 2>&1; then
-              upx --best --ultra-brute "$BIN" || true
+              if command -v timeout >/dev/null 2>&1; then
+                timeout 180 upx --best "$BIN" || echo "UPX failed or timed out, continuing"
+              else
+                upx --best "$BIN" || echo "UPX failed, continuing"
+              fi
             fi
             zip -j "${BIN}.zip" "$BIN" || true
           else
