@@ -148,7 +148,8 @@ def setup_logger(debug_mode: bool):
 def show_menu():
     """显示交互式菜单"""
     print("\n" + "="*50)
-    print("简历解析工具")
+    print("简历解析工具 By zhongbai233")
+    print("项目地址 https://github.com/zhongbai2333/Resume-Parsing")
     print("="*50)
     print("1. 处理文件")
     print("2. 设置 - 修改输入文件夹与输出文件名")
