@@ -179,8 +179,7 @@ jobs:
         run: |
           if ("${{ github.ref_type }}" -eq "tag") { $version = "${{ github.ref_name }}" } else { $version = "sha-${{ github.sha }}" }
           $upxDir = "$pwd\upx\upx-5.0.0-win64"
-          pyinstaller --onefile --clean --name resume-parsing-win64-$version --upx-dir "$upxDir" \
-            --exclude-module tkinter --exclude-module test --exclude-module pytest main.py
+          pyinstaller --onefile --clean --name "resume-parsing-win64-$version" --upx-dir "$upxDir" --exclude-module tkinter --exclude-module test --exclude-module pytest main.py
         shell: powershell
 
       - name: Optimize binary (UPX) (Windows)
