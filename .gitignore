@@ -32,6 +32,12 @@ MANIFEST
 *.manifest
 *.spec
 
+# Test Folder
+网友/
+logs/
+config.json
+output.xlsx
+
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt

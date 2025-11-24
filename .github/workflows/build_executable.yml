@@ -1,0 +1,207 @@
+name: Auto Build Python Executable
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+    tags: [ "v*" ]
+    paths:
+      - '**.py'
+      - 'requirements.txt'
+      - 'img/**'
+      - '.github/workflows/build_executable.yml'
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.3'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies (Linux)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build executable (Linux)
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION="sha-${{ github.sha }}"
+          fi
+          pyinstaller --onefile --clean --name resume-parsing-linux-${VERSION} main.py
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: dist/resume-parsing-linux-*
+
+  build-linux-arm64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.3'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies (Linux ARM64)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build executable (Linux ARM64)
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION="sha-${{ github.sha }}"
+          fi
+          pyinstaller --onefile --clean --name resume-parsing-linux-arm64-${VERSION} main.py
+
+      - name: Upload Linux ARM64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-arm64-build
+          path: dist/resume-parsing-linux-arm64-*
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.3'
+
+      - name: Cache pip (Windows)
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\pip\Cache
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies (Windows)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+        shell: powershell
+
+      - name: Download UPX (optional, Windows)
+        run: |
+          $url = "https://github.com/upx/upx/releases/download/v5.0.0/upx-5.0.0-win64.zip"
+          Invoke-WebRequest -Uri $url -OutFile upx.zip
+          Expand-Archive -Path upx.zip -DestinationPath upx
+        shell: powershell
+
+      - name: Build executable (Windows)
+        run: |
+          if ("${{ github.ref_type }}" -eq "tag") { $version = "${{ github.ref_name }}" } else { $version = "sha-${{ github.sha }}" }
+          $upxDir = "$pwd\upx\upx-5.0.0-win64"
+          pyinstaller --onefile --clean --upx-dir "$upxDir" --name resume-parsing-win64-$version main.py
+        shell: powershell
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: dist\resume-parsing-win64-*.exe
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.3'
+
+      - name: Cache pip (macOS)
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies (macOS)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build executable (macOS)
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION="sha-${{ github.sha }}"
+          fi
+          pyinstaller --onefile --clean --name resume-parsing-macos-${VERSION} main.py
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: dist/resume-parsing-macos-*
+
+  publish-release:
+    needs: [build-linux, build-linux-arm64, build-windows, build-macos]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: List Artifacts
+        run: ls -R release-artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Resume-Parsing Release ${{ github.ref_name }}
+          files: |
+            release-artifacts/linux-build/*
+            release-artifacts/linux-arm64-build/*
+            release-artifacts/windows-build/*
+            release-artifacts/macos-build/*
