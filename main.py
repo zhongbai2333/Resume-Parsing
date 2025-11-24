@@ -28,6 +28,7 @@ import pandas as pd
 from src.read_docx import extract_structure
 from src.extract_tables import extract_tables
 from src.clean_table_dicts import clean_tables
+from src.constants import VERSION
 
 # 可配置：输入文件夹与输出文件名（可在运行时通过设置菜单修改）
 INPUT_FOLDER = os.path.join('.', '网友')
@@ -148,7 +149,7 @@ def setup_logger(debug_mode: bool):
 def show_menu():
     """显示交互式菜单"""
     print("\n" + "="*50)
-    print("简历解析工具 By zhongbai233")
+    print(f"简历解析工具 v{VERSION} By zhongbai233")
     print("项目地址 https://github.com/zhongbai2333/Resume-Parsing")
     print("="*50)
     print("1. 处理文件")
