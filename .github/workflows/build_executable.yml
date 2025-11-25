@@ -37,10 +37,6 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Install strip/zip (Linux)
-        run: |
-          sudo apt-get update && sudo apt-get install -y binutils zip || true
-
       - name: Build executable (Linux)
         run: |
           if [ "${{ github.ref_type }}" = "tag" ]; then
@@ -48,29 +44,13 @@ jobs:
           else
             VERSION="sha-${{ github.sha }}"
           fi
-          # Exclude common unused modules to reduce size and enable strip
-          pyinstaller --onefile --clean --strip \
-            --exclude-module tkinter --exclude-module test --exclude-module pytest \
-            --name resume-parsing-linux-${VERSION} main.py
-
-      - name: Optimize binary (strip only) (Linux)
-        run: |
-          set -eux
-          BIN=$(ls dist/resume-parsing-linux-* | head -n1)
-          if [ -n "$BIN" ]; then
-            strip "$BIN" || true
-            zip -j "${BIN}.zip" "$BIN" || true
-          else
-            echo "No binary found in dist/"
-            exit 1
-          fi
+          pyinstaller --onefile --clean --name resume-parsing-linux-${VERSION} main.py
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-build
-          path: |
-            dist/resume-parsing-linux-*.zip
+          path: dist/resume-parsing-linux-*
 
   build-linux-arm64:
     runs-on: ubuntu-24.04-arm
@@ -97,10 +77,6 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Install strip/zip (Linux ARM64)
-        run: |
-          sudo apt-get update && sudo apt-get install -y binutils zip || true
-
       - name: Build executable (Linux ARM64)
         run: |
           if [ "${{ github.ref_type }}" = "tag" ]; then
@@ -108,28 +84,13 @@ jobs:
           else
             VERSION="sha-${{ github.sha }}"
           fi
-          pyinstaller --onefile --clean --strip \
-            --exclude-module tkinter --exclude-module test --exclude-module pytest \
-            --name resume-parsing-linux-arm64-${VERSION} main.py
-
-      - name: Optimize binary (strip only) (Linux ARM64)
-        run: |
-          set -eux
-          BIN=$(ls dist/resume-parsing-linux-arm64-* | head -n1)
-          if [ -n "$BIN" ]; then
-            strip "$BIN" || true
-            zip -j "${BIN}.zip" "$BIN" || true
-          else
-            echo "No binary found in dist/"
-            exit 1
-          fi
+          pyinstaller --onefile --clean --name resume-parsing-linux-arm64-${VERSION} main.py
 
       - name: Upload Linux ARM64 artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-arm64-build
-          path: |
-            dist/resume-parsing-linux-arm64-*.zip
+          path: dist/resume-parsing-linux-arm64-*
 
   build-windows:
     runs-on: windows-latest
@@ -168,23 +129,14 @@ jobs:
         run: |
           if ("${{ github.ref_type }}" -eq "tag") { $version = "${{ github.ref_name }}" } else { $version = "sha-${{ github.sha }}" }
           $upxDir = "$pwd\upx\upx-5.0.0-win64"
-          pyinstaller --onefile --clean --name "resume-parsing-win64-$version" --upx-dir "$upxDir" --exclude-module tkinter --exclude-module test --exclude-module pytest main.py
-        shell: powershell
-
-      - name: Package executable (Windows)
-        run: |
-          $exe = Get-ChildItem dist\resume-parsing-win64-* -File | Select-Object -First 1
-          if ($exe) {
-            Compress-Archive -Path $exe.FullName -DestinationPath ($exe.FullName + '.zip') -Force
-          } else { throw 'No exe found' }
+          pyinstaller --onefile --clean --upx-dir "$upxDir" --name resume-parsing-win64-$version main.py
         shell: powershell
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-build
-          path: |
-            dist\resume-parsing-win64-*.zip
+          path: dist\resume-parsing-win64-*.exe
 
   build-macos:
     runs-on: macos-latest
@@ -218,27 +170,13 @@ jobs:
           else
             VERSION="sha-${{ github.sha }}"
           fi
-          pyinstaller --onefile --clean --strip \
-            --exclude-module tkinter --exclude-module test --exclude-module pytest \
-            --name resume-parsing-macos-${VERSION} main.py
-
-      - name: Optimize binary (strip only) (macOS)
-        run: |
-          BIN=$(ls dist/resume-parsing-macos-* | head -n1)
-          if [ -n "$BIN" ]; then
-            strip -x "$BIN" || true
-            zip -j "${BIN}.zip" "$BIN" || true
-          else
-            echo "No binary found in dist/"
-            exit 1
-          fi
+          pyinstaller --onefile --clean --name resume-parsing-macos-${VERSION} main.py
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
           name: macos-build
-          path: |
-            dist/resume-parsing-macos-*.zip
+          path: dist/resume-parsing-macos-*
 
   publish-release:
     needs: [build-linux, build-linux-arm64, build-windows, build-macos]
