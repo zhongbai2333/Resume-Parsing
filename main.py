@@ -216,6 +216,15 @@ def process_files(debug_mode: bool):
                 rows.append(row)
 
     df = pd.DataFrame(rows, columns=COLUMNS)
+    # 在写入前确保输出目录存在（如果用户通过设置输入了带目录的输出路径）
+    out_dir = os.path.dirname(OUTPUT_XLSX)
+    if out_dir:
+        try:
+            os.makedirs(out_dir, exist_ok=True)
+        except Exception as e:
+            logger.error(f"无法创建输出目录 {out_dir}：{e}")
+            logger.error("请检查输出路径设置并重试。")
+            return
     df.to_excel(OUTPUT_XLSX, index=False)
     logger.info(f"\n{'='*50}")
     logger.info(f"完成！结果已保存到: {OUTPUT_XLSX}")
@@ -248,10 +257,48 @@ def main():
             print(f"  输出文件名: {OUTPUT_XLSX}")
             new_in = input("输入新的读取文件夹路径（回车保持不变）: ").strip()
             if new_in:
-                INPUT_FOLDER = new_in
-            new_out = input("输入新的输出文件名（回车保持不变）: ").strip()
-            if new_out:
+                # 允许输入目录路径；若路径不存在则尝试自动创建
+                new_in = os.path.expanduser(new_in)
+                new_in = os.path.normpath(new_in)
+                try:
+                    os.makedirs(new_in, exist_ok=True)
+                    INPUT_FOLDER = new_in
+                    print(f"输入目录已设置为: {INPUT_FOLDER}")
+                except Exception as e:
+                    print(f"无法创建目录 '{new_in}'：{e}")
+                    print("将继续使用现有输入目录。")
+            # 校验输出文件名/路径：支持类似 `dir/subdir/name.xlsx`，但末尾必须是文件名且以 .xlsx 结尾
+            while True:
+                new_out = input("输入新的输出文件名（或路径，回车保持不变）: ").strip()
+                if not new_out:
+                    break
+                # 支持 ~ 展开与路径规范化
+                new_out = os.path.expanduser(new_out)
+                new_out = os.path.normpath(new_out)
+
+                # 必须以 .xlsx 结尾
+                if not new_out.lower().endswith('.xlsx'):
+                    print("输出必须为 .xlsx 文件。示例: my_report.xlsx 或 reports/my_report.xlsx")
+                    continue
+
+                dir_part = os.path.dirname(new_out)
+                base = os.path.basename(new_out)
+                name_part = base[:-5]
+                if not name_part or not any(ch.isalnum() for ch in name_part):
+                    print("文件名无效：请在扩展名前提供有效的文件名（至少包含一个字母或数字）。示例: my_report.xlsx")
+                    continue
+
+                # 若指定了目录，尝试创建（若不存在）
+                if dir_part:
+                    try:
+                        os.makedirs(dir_part, exist_ok=True)
+                    except Exception as e:
+                        print(f"无法创建输出目录 '{dir_part}'：{e}")
+                        print("请检查路径或重试。")
+                        continue
+
                 OUTPUT_XLSX = new_out
+                break
             # 持久化配置
             cfg = load_config()
             cfg['input_folder'] = INPUT_FOLDER
